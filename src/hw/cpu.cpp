@@ -912,7 +912,7 @@ void execute()
     {
         if (high_opcode != 0 && mid_opcode != 0 && low_opcode != 0) {
             std::cout << "Error! Instruction not recognized" << std::endl;
-            std::cout << "Instructions failed: " << ++INSTRUCTION_FAILS <<std::endl;
+            INSTRUCTION_FAILS++;
         }
     }
 
@@ -935,34 +935,47 @@ int main(int argc, char** argv)
 
     char* file_path = new char;
 
-    if (argc > 0) {
+    if (argc < 1) {
+        std::cout << "Provide a boot ROM path!!!" << std::endl;
+        return 1;
+    } else {
         file_path = argv[1];
+        file_path = "./roms/dmg-bin";
+        std::ifstream gameBoyBootRom(file_path);
+        char current_char = 0;
+        int bytes_length = 0;
+
+        char* bytes = new char[8*1024];
+
+        while (gameBoyBootRom.get(current_char))
+        {
+            bytes[bytes_length] = current_char;
+            bytes_length++;
+        }
+
+        gameBoyBootRom.close();
+
+        parseBytes(bytes, bytes_length);
+
+        for (int i = 0; i < bytes_length; i++)
+        {
+            RAM[i] = bytes[i];
+        }
+
+        std::cout << "PROGRAM SIZE: " << bytes_length << " BYTES" << std::endl;
+        
+
+        loop();
+
+        delete[] bytes;
+        
+        std::cout << "Instructions failed: " << INSTRUCTION_FAILS <<std::endl;
+
+        parseBytes((char *)REGISTER_FILE, REGISTER_FILE_SIZE);
+
     }
-
-    std::ifstream gameBoyBootRom(file_path);
-    char current_char = 0;
-    int bytes_length = 0;
-
-    char* bytes = new char[8*1024];
-
-    while (gameBoyBootRom.get(current_char))
-    {
-        bytes[bytes_length] = current_char;
-        bytes_length++;
-    }
-
-    parseBytes(bytes, bytes_length);
-
-    for (int i = 0; i < bytes_length; i++)
-    {
-        RAM[i] = bytes[i];
-    }
-
-    std::cout << "PROGRAM SIZE: " << bytes_length << " BYTES" << std::endl;
-    
-
-    loop();
 
     return 0;
+
 }
 
