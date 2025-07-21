@@ -3,6 +3,7 @@
 #include <cstring>
 
 int INSTRUCTION_FAILS = 0;
+int PROGRAM_SIZE = 0;
 
 float CLOCK_FREQUENCY = 4.194304; //Mhz
 
@@ -87,13 +88,13 @@ int HIGH_RAM_ADDRESS_END = 0xFFFE;
 
 int INTERRUPT_ENABLE_REGISTER_ADDRESS = 0xFFFF;
 
-void parseBytes(char* bytes, int bytes_length)
+void parseBytes(unsigned char* bytes, int bytes_length)
 {
 
     unsigned char bytes_copy[bytes_length];
     memcpy(&bytes_copy, bytes, bytes_length);
 
-    char current_byte[8];
+    unsigned char current_byte[8];
     int counter = 0;
     
 
@@ -142,7 +143,7 @@ void fetch()
     *INSTRUCTION_REGISTER = RAM[PC];
 
     std::cout << PC << ": " << "RETRIEVED FUNC - ";
-    parseBytes((char *)INSTRUCTION_REGISTER, 1);
+    parseBytes(INSTRUCTION_REGISTER, 1);
 }
 
 void execute()
@@ -151,9 +152,9 @@ void execute()
     unsigned char instruction = *INSTRUCTION_REGISTER;
     unsigned char data = (unsigned char)*BUS;
 
-    unsigned char high_opcode = (instruction & 0xC0) >> 6;
-    unsigned char mid_opcode = (instruction & 0b111000) >> 3;
-    unsigned char low_opcode = (instruction & 0b111);
+    unsigned char high_opcode = (unsigned char)((instruction & 0xC0) >> 6);
+    unsigned char mid_opcode = (unsigned char)((instruction & 0b111000) >> 3);
+    unsigned char low_opcode = (unsigned char)(instruction & 0b111);
     unsigned short SP_FULL_ADDRESS = ((RAM[REGISTER_FILE[SP_HI_REGISTER]] << 8) | (RAM[REGISTER_FILE[SP_LO_REGISTER]]));
     unsigned short HL_FULL_ADDRESS = ((REGISTER_FILE[H_REGISTER] << 8) | REGISTER_FILE[L_REGISTER]);
 
@@ -256,7 +257,8 @@ void execute()
             if (low_opcode == 0x02)
             {
                 //LD A, (nn)
-                REGISTER_FILE[A_REGISTER] = RAM[((PC+2) << 8) | (PC+1)]; 
+                unsigned short address = ((RAM[PC+2] << 8) | RAM[PC+1]);
+                REGISTER_FILE[A_REGISTER] = RAM[address]; 
                 PC += 2;
             }
             else if (low_opcode == 0x01)
@@ -311,7 +313,8 @@ void execute()
             if (low_opcode == 0x02)
             {
                 //LD (nn), A
-                RAM[HL_FULL_ADDRESS] = RAM[((PC+2) << 8) | (PC+1)];
+                unsigned short address = ((RAM[PC+2] << 8) | RAM[PC+1]);
+                RAM[address] = REGISTER_FILE[A_REGISTER];
                 PC += 2;
             }
         }
@@ -775,12 +778,14 @@ void execute()
     //00
     else if (high_opcode == 0x00)
     {
-        if (low_opcode == 1 && mid_opcode%2 != 1)
+        if ((low_opcode == 1) && (mid_opcode%2 == 0))
         {
             //LD rr, nn
-            unsigned char select_reg = mid_opcode >> 1;
-            unsigned short data = RAM[((PC+2) << 8) | PC+1];
-            PC++;
+            unsigned char select_reg = (mid_opcode >> 1);
+            unsigned short data = ((RAM[PC+2] << 8) | RAM[PC+1]);
+            PC += 2;
+
+
             switch (select_reg)
             {
                 case 0:
@@ -922,7 +927,7 @@ void execute()
 void loop()
 {
 
-    while (PC < RAM_SIZE)
+    while (PC < PROGRAM_SIZE)
     {
         fetch();
         execute();
@@ -933,47 +938,75 @@ void loop()
 int main(int argc, char** argv)
 {
 
-    char* file_path = new char;
+    const char* boot_rom_path = "./roms/dmg.bin";
+    const int default_path_bytes = 17;
+    const int boot_rom_size = 256;
 
-    if (argc < 1) {
-        std::cout << "Provide a boot ROM path!!!" << std::endl;
-        return 1;
+    char* rom_path = new char[1024];
+
+    //CHECK IF ROM PROVIDED
+
+    if (argc < 2) {
+        std::cout << "Loading BOOT ROM only." << std::endl;
+        //memcpy(rom_path, default_boot_path, default_path_bytes);
     } else {
-        file_path = argv[1];
-        file_path = "./roms/dmg-bin";
-        std::ifstream gameBoyBootRom(file_path);
-        char current_char = 0;
-        int bytes_length = 0;
-
-        char* bytes = new char[8*1024];
-
-        while (gameBoyBootRom.get(current_char))
+        int counter = 0;
+        while (argv[1][counter] != '\0')
         {
-            bytes[bytes_length] = current_char;
-            bytes_length++;
+            rom_path[counter] = argv[1][counter];
+            counter++;
         }
-
-        gameBoyBootRom.close();
-
-        parseBytes(bytes, bytes_length);
-
-        for (int i = 0; i < bytes_length; i++)
-        {
-            RAM[i] = bytes[i];
-        }
-
-        std::cout << "PROGRAM SIZE: " << bytes_length << " BYTES" << std::endl;
-        
-
-        loop();
-
-        delete[] bytes;
-        
-        std::cout << "Instructions failed: " << INSTRUCTION_FAILS <<std::endl;
-
-        parseBytes((char *)REGISTER_FILE, REGISTER_FILE_SIZE);
-
+        std::cout << rom_path << std::endl;
     }
+
+    //LOAD BOOT ROM
+    std::ifstream gameBoyBootRom(boot_rom_path);
+
+    char* bytes = new char[boot_rom_size];
+
+    gameBoyBootRom.get(bytes, boot_rom_size);
+
+    gameBoyBootRom.close();
+
+    memcpy(RAM, bytes, boot_rom_size);
+
+    PROGRAM_SIZE = boot_rom_size;
+
+    //LOAD ROM IF PROVIDED
+    if (*rom_path != 0)
+    {
+        int max_bytes = RAM_SIZE-boot_rom_size;
+        int bytes_read = 0;
+        char* bytes_buffer = new char[max_bytes];
+        char* current_char = new char;
+        std::ifstream gameBoyRom(rom_path);
+
+        while (gameBoyRom.get(*current_char))
+        {
+            bytes_buffer[bytes_read] = (*current_char);
+            bytes_read++;
+        }
+
+        memcpy((RAM+boot_rom_size), bytes_buffer, bytes_read);
+
+        gameBoyRom.close();
+
+        delete[] bytes_buffer;
+        delete current_char;
+        PROGRAM_SIZE += bytes_read;
+    }
+
+    //FREE MEMORY BEFORE MAIN LOOP
+    delete[] bytes;
+    delete[] rom_path;
+
+    std::cout << "Parsed " << PROGRAM_SIZE << " bytes" <<std::endl;
+
+    loop();
+    
+    std::cout << "Instructions failed: " << INSTRUCTION_FAILS <<std::endl;
+
+    //parseBytes((char *)REGISTER_FILE, REGISTER_FILE_SIZE);
 
     return 0;
 
