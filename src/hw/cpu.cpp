@@ -2,7 +2,10 @@
 #include <fstream>
 #include <cstring>
 
+//DEBUG VARIABLES
 int INSTRUCTION_FAILS = 0;
+int NOP_COUNTER = 0;
+int INSTRUCTION_COUNTER = 0;
 int PROGRAM_SIZE = 0;
 
 float CLOCK_FREQUENCY = 4.194304; //Mhz
@@ -14,7 +17,7 @@ float CLOCK_FREQUENCY = 4.194304; //Mhz
 //int RAM_SIZE = 256;
 
 //ONE RAM FOR EVERYTHING
-int RAM_SIZE = 0xFFFF+1;
+int RAM_SIZE = 0xFFFFFF+1;
 
 int VIDEO_RAM_SIZE = 8*(1 << 10);
 int REGISTER_FILE_SIZE = 14;
@@ -141,6 +144,8 @@ void handleBusyClock(bool* cpu_busy, int* cpu_busy_counter, int cycles)
 void fetch()
 {
     *INSTRUCTION_REGISTER = RAM[PC];
+
+    INSTRUCTION_COUNTER++;
 
     std::cout << PC << ": " << "RETRIEVED FUNC - ";
     parseBytes(INSTRUCTION_REGISTER, 1);
@@ -472,7 +477,7 @@ void execute()
                 unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
                 unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
 
-                REGISTER_FILE[A_REGISTER] += RAM[REGISTER_FILE[HL_FULL_ADDRESS]];
+                REGISTER_FILE[A_REGISTER] += RAM[HL_FULL_ADDRESS];
 
                 //Z BIT = 6
                 if (REGISTER_FILE[A_REGISTER] == 0)
@@ -897,7 +902,7 @@ void execute()
             {
                 //LD (HL+), A
                 unsigned short int hl_register_value = HL_FULL_ADDRESS;
-                RAM[REGISTER_FILE[hl_register_value]] = REGISTER_FILE[A_REGISTER];
+                RAM[hl_register_value] = REGISTER_FILE[A_REGISTER];
                 hl_register_value++;
                 REGISTER_FILE[H_REGISTER] = (char)(hl_register_value >> 8);
                 REGISTER_FILE[L_REGISTER] = (char)hl_register_value;
@@ -918,6 +923,8 @@ void execute()
         if (high_opcode != 0 && mid_opcode != 0 && low_opcode != 0) {
             std::cout << "Error! Instruction not recognized" << std::endl;
             INSTRUCTION_FAILS++;
+        } else {
+            NOP_COUNTER++;
         }
     }
 
@@ -1004,7 +1011,9 @@ int main(int argc, char** argv)
 
     loop();
     
-    std::cout << "Instructions failed: " << INSTRUCTION_FAILS <<std::endl;
+    std::cout << "Scores:\t\tTotal Instructions\t\tNOP Instructions\t\tFailed Instructions\t\tInst/Failed\t\tInst/Failed (NOP excluded)" << std::endl;
+    std::cout << "\t\t" << INSTRUCTION_COUNTER << "\t\t\t\t" << NOP_COUNTER << "\t\t\t\t" << INSTRUCTION_FAILS << "\t\t\t\t" << (float)INSTRUCTION_COUNTER/(float)INSTRUCTION_FAILS << "\t\t\t" << (float)(INSTRUCTION_COUNTER-NOP_COUNTER)/INSTRUCTION_FAILS << std::endl;
+    
 
     //parseBytes((char *)REGISTER_FILE, REGISTER_FILE_SIZE);
 
