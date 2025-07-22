@@ -137,6 +137,111 @@ void updateFailMetrics(unsigned char high_opcode, unsigned char mid_opcode, unsi
     }
 }
 
+/*
+
+    mode: 0 ADD
+          1 SUB
+
+    FLAG REGISTER
+    
+    7  6  5  4  3  2  1  0
+    Z  N  H  CY X  X  X  X
+
+    set Z to 1 if result=0, else set Z to 0
+    set N to 1 if is SUB, else set Z to 0
+    set H to 1 if carry bit 3
+    set CY to 1 if carry byt 7
+
+*/
+void doALUOp(unsigned char* dst, unsigned char operand1, unsigned char operand2, unsigned char bitmask, unsigned char mode)
+{
+
+    unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 3)%2;
+    unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 7)%2;
+
+    if (mode == 0)
+    {
+        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
+
+        //SET FLAGS
+        unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 3)%2;
+        unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 7)%2;
+
+        *dst = operand1 + operand2;
+
+        if (*dst == 0)
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x80);
+        }
+        else
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0x7F);
+        }
+        //H BIT = 4
+        if (check_bit_3 == 1 && ((*dst >> 3)%2 == 0))
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x20);
+        }
+        else
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xDF);
+        }
+
+        //CY BIT = 0
+        if (check_bit_7 == 1 && (*dst >> 7)%2 == 0)
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x10);
+        }
+        else
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xEF);
+        }
+    }
+    else if (mode == 1)
+    {
+        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
+
+        *dst = operand1 - operand2;
+
+        //Z BIT
+        if (*dst == 0)
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x80);
+        }
+        else
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0x7F);
+        }
+
+        //H BIT
+        if (check_bit_3 == 0 && (*dst >> 3)%2 == 1)
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x20);
+        }
+        else
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xDF);
+        }
+
+        //CY BIT = 0
+        if (check_bit_7 == 0 && (*dst >> 7)%2 == 1)
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x10);
+        }
+        else
+        {
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xEF);
+        }
+    }
+    else
+    {
+        std::cout << "This should never happen." << std::endl;
+    }
+
+    REGISTER_FILE[F_REGISTER] = REGISTER_FILE[F_REGISTER] & bitmask;
+
+}
+
 void fetch()
 {
     dispatchMemOp(PC, INSTRUCTION_REGISTER, 0);
@@ -254,7 +359,15 @@ void execute()
             {
                 //LDH (C), A
                 dispatchMemOp((0xFF | REGISTER_FILE[C_REGISTER]), &(REGISTER_FILE[A_REGISTER]), 1);
-            } else
+            }
+            else if (low_opcode == 0x06)
+            {
+                //SUB n
+                //SET FLAGS
+                dispatchMemOp(HL_FULL_ADDRESS, DATA_BUS, 0);
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], *DATA_BUS, 0xFF, 1);
+            }
+            else
             {
                 updateFailMetrics(high_opcode, mid_opcode, low_opcode);
             }
@@ -281,42 +394,13 @@ void execute()
             else if (low_opcode == 0x00)
             {
                 //LD HL, SP+e
-                //INIT FLAGS
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBD);
 
                 //INIT VARS                
-                signed char operand_e = 0;
-                dispatchMemOp(PC+1, (unsigned char *)&operand_e, 0);
+                dispatchMemOp(PC+1, DATA_BUS, 0);
                 PC++;
 
+                doALUOp(&REGISTER_FILE[SP_LO_REGISTER], REGISTER_FILE[SP_LO_REGISTER], (*DATA_BUS >> 1), 0x3F , (*DATA_BUS & 0x80));
                 REGISTER_FILE[H_REGISTER] = REGISTER_FILE[SP_HI_REGISTER];
-
-                //SET FLAGS
-                unsigned char check_bit_3 = (REGISTER_FILE[SP_LO_REGISTER] >> 2)%2;
-                unsigned char check_bit_7 = (REGISTER_FILE[SP_LO_REGISTER] >> 6)%2;
-
-                REGISTER_FILE[L_REGISTER] = (unsigned char)REGISTER_FILE[SP_LO_REGISTER] + (signed char)operand_e;
-
-                //H BIT = 4
-                if (check_bit_3 == 1 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                }
-
-                //C BIT = 0
-                if (check_bit_7 == 1 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                }
-
             }
             else
             {
@@ -346,47 +430,9 @@ void execute()
             if (low_opcode == 0x06)
             {
                 //SUB n
-                //INIT FLAGS
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0xFD);
-
-                //INIT VARS
-                unsigned char operand_immediate;
-                dispatchMemOp(PC+1, &operand_immediate, 0);
+                dispatchMemOp(PC+1, DATA_BUS, 0);
                 PC++;
-
-                //SET FLAGS
-                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-                REGISTER_FILE[A_REGISTER] -= operand_immediate;
-
-                if (REGISTER_FILE[A_REGISTER] == 0)
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                }
-                //H BIT = 4
-                if (check_bit_3 == 0 && ((REGISTER_FILE[A_REGISTER] >> 2)%2 == 1))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                }
-
-                //C BIT = 0
-                if (check_bit_7 == 0 && ((REGISTER_FILE[A_REGISTER] >> 6)%2 == 1))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                }
-                
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], *DATA_BUS, 0xFF, 1);
             }
             else
             {
@@ -398,46 +444,9 @@ void execute()
             if (low_opcode == 0x06)
             {
                 //ADC n
-                //INIT FLAGS
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFD);
-
-                //INIT VARS
-                unsigned char operand_immediate;
-                dispatchMemOp(PC+1, &operand_immediate, 0);
+                dispatchMemOp(PC+1, DATA_BUS, 0);
                 PC++;
-
-                //SET FLAGS
-                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-                REGISTER_FILE[A_REGISTER] += (operand_immediate + (REGISTER_FILE[F_REGISTER]%2));
-
-                if (REGISTER_FILE[A_REGISTER] == 0)
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                }
-                //H BIT = 4
-                if (check_bit_3 == 1 && ((REGISTER_FILE[A_REGISTER] >> 2)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                }
-
-                //C BIT = 0
-                if (check_bit_7 == 1 && ((REGISTER_FILE[A_REGISTER] >> 6)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                }
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], *DATA_BUS + ((REGISTER_FILE[F_REGISTER] >> 4)%2), 0xFF, 0);
             }
             else
             {
@@ -449,46 +458,10 @@ void execute()
             if (low_opcode == 0x06)
             {
                 //ADD n
-                //INIT FLAGS
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFD);
-
-                //INIT VARS
-                signed char operand_immediate;
-                dispatchMemOp(PC+1, (unsigned char*)&operand_immediate, 0);
+                dispatchMemOp(PC+1, DATA_BUS, 0);
                 PC++;
 
-                //SET FLAGS
-                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-                REGISTER_FILE[A_REGISTER] += operand_immediate;
-
-                if (REGISTER_FILE[A_REGISTER] == 0)
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                }
-                //H BIT = 4
-                if (check_bit_3 == 1 && ((REGISTER_FILE[A_REGISTER] >> 2)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                }
-
-                //C BIT = 0
-                if (check_bit_7 == 1 && ((REGISTER_FILE[A_REGISTER] >> 6)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                }
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], *DATA_BUS, 0xFF, 0);
             }
             else
             {
@@ -505,43 +478,8 @@ void execute()
             if (low_opcode == 0x06)
             {
                 //ADD (HL)
-                //SET FLAGS
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0xFD);
-                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
                 dispatchMemOp(HL_FULL_ADDRESS, DATA_BUS, 0);
-                REGISTER_FILE[A_REGISTER] += *DATA_BUS;
-
-                //Z BIT = 6
-                if (REGISTER_FILE[A_REGISTER] == 0)
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                }
-
-                //H BIT = 4
-                if (check_bit_3 == 1 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                }
-
-                //C BIT = 0
-                if (check_bit_7 == 1 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                }
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], *DATA_BUS, 0xFF, 0);
             }
             else
             {
@@ -553,84 +491,14 @@ void execute()
             if (low_opcode == 0x06)
             {
                 //ADC (HL)
-                //SET FLAGS               
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFD);
-                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
                 dispatchMemOp(HL_FULL_ADDRESS, DATA_BUS, 0);
-                REGISTER_FILE[A_REGISTER] += (*DATA_BUS + (REGISTER_FILE[F_REGISTER]%2));
-
-                //Z BIT = 6
-                if (REGISTER_FILE[A_REGISTER] == 0)
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                }
-
-                //H BIT = 4
-                if (check_bit_3 == 1 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                }
-
-                //C BIT = 0
-                if (check_bit_7 == 1 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                }
-                
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], *DATA_BUS + ((REGISTER_FILE[F_REGISTER] >> 4)%2), 0xFF, 0);
             }
             else
             {
                 //ADC r
                 //SET FLAGS               
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFD);
-                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
-                REGISTER_FILE[A_REGISTER] += REGISTER_FILE[low_opcode] + (REGISTER_FILE[F_REGISTER]%2);
-
-                //Z BIT = 6
-                if (REGISTER_FILE[A_REGISTER] == 0)
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                }
-
-                //H BIT = 4
-                if (check_bit_3 == 1 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                }
-
-                //C BIT = 0
-                if (check_bit_7 == 1 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 0))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                }
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], REGISTER_FILE[low_opcode]+((REGISTER_FILE[F_REGISTER] >> 4)%2), 0xFF, 0);
             }                
         }
         else if (mid_opcode == 0x02)
@@ -638,164 +506,25 @@ void execute()
             if (low_opcode == 0x06)
             {
                 //SUB (HL)
-                //SET FLAGS
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x02);
-                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
                 dispatchMemOp(HL_FULL_ADDRESS, DATA_BUS, 0);
-                REGISTER_FILE[A_REGISTER] -= *DATA_BUS;
-
-                //Z BIT = 6
-                if (REGISTER_FILE[A_REGISTER] == 0)
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                }
-
-                //H BIT = 4
-                if (check_bit_3 == 0 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 1))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                }
-
-                //C BIT = 0
-                if (check_bit_7 == 0 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 1))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                }
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], *DATA_BUS, 0xFF, 1);
             }
             else
             {
                 //SUB r
-                //SET FLAGS
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x02);
-                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
-                REGISTER_FILE[A_REGISTER] -= REGISTER_FILE[low_opcode];
-
-                //Z BIT = 6
-                if (REGISTER_FILE[A_REGISTER] == 0)
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                }
-
-                //H BIT = 4
-                if (check_bit_3 == 0 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 1))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                }
-
-                //C BIT = 0
-                if (check_bit_7 == 0 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 1))
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                }
-                else
-                {
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                }
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], REGISTER_FILE[low_opcode], 0xFF, 1);
             }
         }
         else if (mid_opcode == 0x03)
         {
             //SBC r
             //SET FLAGS
-            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x02);
-            unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-            unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
-            REGISTER_FILE[A_REGISTER] -= (REGISTER_FILE[low_opcode] - (REGISTER_FILE[F_REGISTER]%2));
-
-            //Z BIT = 6
-            if (REGISTER_FILE[A_REGISTER] == 0)
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-            }
-            else
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-            }
-
-            //H BIT = 4
-            if (check_bit_3 == 0 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 1))
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-            }
-            else
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-            }
-
-            //C BIT = 0
-            if (check_bit_7 == 0 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 1))
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-            }
-            else
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-            }
+            doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], REGISTER_FILE[low_opcode] - ((REGISTER_FILE[F_REGISTER] >> 4) %2), 0xFF, 1);
         }
         else
         {
             //ADD r
-            //SET FLAGS
-            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFD);
-            unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-            unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
-            REGISTER_FILE[A_REGISTER] += REGISTER_FILE[low_opcode];
-
-            //Z BIT = 6
-            if (REGISTER_FILE[A_REGISTER] == 0)
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-            }
-            else
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-            }
-
-            //H BIT = 4
-            if (check_bit_3 == 1 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 0))
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-            }
-            else
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-            }
-
-            //C BIT = 0
-            if (check_bit_7 == 1 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 0))
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-            }
-            else
-            {
-                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-            }
+            doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], REGISTER_FILE[low_opcode], 0xFF, 0);
         }
     }
 
@@ -831,7 +560,6 @@ void execute()
             dispatchMemOp(PC+1, DATA_BUS, 0);
             data = (data | *DATA_BUS);
             PC += 2;
-
 
             switch (select_reg)
             {
@@ -890,11 +618,10 @@ void execute()
             if (low_opcode == 0x02)
             {
                 //LD A, (HL+)
-                unsigned short int hl_register_value = HL_FULL_ADDRESS;
-                REGISTER_FILE[A_REGISTER] = hl_register_value;
-                hl_register_value++;
-                REGISTER_FILE[H_REGISTER] = (hl_register_value >> 8);
-                REGISTER_FILE[L_REGISTER] = (char)hl_register_value;
+                REGISTER_FILE[A_REGISTER] = HL_FULL_ADDRESS;
+                HL_FULL_ADDRESS++;
+                REGISTER_FILE[H_REGISTER] = (HL_FULL_ADDRESS >> 8);
+                REGISTER_FILE[L_REGISTER] = (char)HL_FULL_ADDRESS;
                 
             }
             else
