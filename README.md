@@ -14,7 +14,7 @@ Nothing more, nothing less. Nespresso, what else?
 
 - [ ] AUDIO HANDLING
 
-- [ ] INSTRUCTIONS LEFT TO BOOT:    25  (9.77% of ROM's unique instructions)
+- [ ] INSTRUCTIONS LEFT TO BOOT:    24  (9.38% of ROM's unique instructions)
 
 - [ ] INSTRUCTIONS LEFT TO PLAY TETRIS:    3285    (9.95% of ROM's unique instructions)
 
