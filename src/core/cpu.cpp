@@ -103,6 +103,40 @@ std::string parseBytes(unsigned char* bytes, int bytes_length)
 
 }
 
+void updateMetrics(unsigned char high_opcode, unsigned char mid_opcode, unsigned char low_opcode)
+{
+    if (high_opcode == 0 && mid_opcode == 0 && low_opcode == 0)
+    {
+        NOP_COUNTER++;
+    }
+    if (!seen[((high_opcode << 8)| (mid_opcode << 3) | low_opcode)])
+    {
+        UNIQUE_INST++;
+    }
+    else
+    {
+        seen[((high_opcode << 8)| (mid_opcode << 3) | low_opcode)] = true;
+    }
+    INSTRUCTION_COUNTER++;
+    
+}
+
+void updateFailMetrics(unsigned char high_opcode, unsigned char mid_opcode, unsigned char low_opcode)
+{
+    if (high_opcode != 0 && mid_opcode != 0 && low_opcode != 0) {
+        if (!seen_fail[((high_opcode << 8)| (mid_opcode << 3) | low_opcode)])
+        {
+            UNIQUE_FAILS++;
+        }
+        else
+        {
+            seen_fail[((high_opcode << 8)| (mid_opcode << 3) | low_opcode)] = true;
+        }
+        INSTRUCTION_FAILS++;
+        std::cout << "Error! Instruction not recognized" << std::endl << std::flush;
+    }
+}
+
 void fetch()
 {
     dispatchMemOp(PC, INSTRUCTION_REGISTER, 0);
@@ -203,6 +237,10 @@ void execute()
                 dispatchMemOp((0xFF | REGISTER_FILE[C_REGISTER]), DATA_BUS, 0);
                 REGISTER_FILE[A_REGISTER] = *DATA_BUS;
             }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
         }
         else if (mid_opcode == 0x04)
         {
@@ -216,6 +254,9 @@ void execute()
             {
                 //LDH (C), A
                 dispatchMemOp((0xFF | REGISTER_FILE[C_REGISTER]), &(REGISTER_FILE[A_REGISTER]), 1);
+            } else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
             }
         } 
         else if (mid_opcode == 0x07)
@@ -277,6 +318,10 @@ void execute()
                 }
 
             }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
         }
         else if (mid_opcode == 0x05)
         {
@@ -290,6 +335,10 @@ void execute()
                 address = (address | *DATA_BUS);
                 dispatchMemOp(address, &REGISTER_FILE[A_REGISTER], 1);
                 PC += 2;
+            }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
             }
         }
         else if (mid_opcode == 0x02)
@@ -339,6 +388,10 @@ void execute()
                 }
                 
             }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
         }
         else if (mid_opcode == 0x01)
         {
@@ -385,6 +438,10 @@ void execute()
                 {
                     REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
                 }
+            }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
             }
         }
         else if (mid_opcode == 0x00)
@@ -433,11 +490,15 @@ void execute()
                     REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
                 }
             }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
         }
     }
 
     //10
-    if (high_opcode == 0x02)
+    else if (high_opcode == 0x02)
     {
         if (mid_opcode == 0x00)
         {
@@ -481,226 +542,24 @@ void execute()
                 {
                     REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
                 }
-                ;
-            }
-            else if (mid_opcode == 0x01)
-            {
-                if (low_opcode == 0x06)
-                {
-                    //ADC (HL)
-                    //SET FLAGS               
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFD);
-                    unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                    unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
-                    dispatchMemOp(HL_FULL_ADDRESS, DATA_BUS, 0);
-                    REGISTER_FILE[A_REGISTER] += (*DATA_BUS + (REGISTER_FILE[F_REGISTER]%2));
-
-                    //Z BIT = 6
-                    if (REGISTER_FILE[A_REGISTER] == 0)
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                    }
-
-                    //H BIT = 4
-                    if (check_bit_3 == 1 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 0))
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                    }
-
-                    //C BIT = 0
-                    if (check_bit_7 == 1 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 0))
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                    }
-                    
-                }
-                else
-                {
-                    //ADC r
-                    //SET FLAGS               
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFD);
-                    unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                    unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
-                    REGISTER_FILE[A_REGISTER] += REGISTER_FILE[low_opcode] + (REGISTER_FILE[F_REGISTER]%2);
-
-                    //Z BIT = 6
-                    if (REGISTER_FILE[A_REGISTER] == 0)
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                    }
-
-                    //H BIT = 4
-                    if (check_bit_3 == 1 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 0))
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                    }
-
-                    //C BIT = 0
-                    if (check_bit_7 == 1 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 0))
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                    }
-                }                
-            }
-            else if (mid_opcode == 0x02)
-            {
-                if (low_opcode == 0x06)
-                {
-                    //SUB (HL)
-                    //SET FLAGS
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x02);
-                    unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                    unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
-                    dispatchMemOp(HL_FULL_ADDRESS, DATA_BUS, 0);
-                    REGISTER_FILE[A_REGISTER] -= *DATA_BUS;
-
-                    //Z BIT = 6
-                    if (REGISTER_FILE[A_REGISTER] == 0)
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                    }
-
-                    //H BIT = 4
-                    if (check_bit_3 == 0 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 1))
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                    }
-
-                    //C BIT = 0
-                    if (check_bit_7 == 0 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 1))
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                    }
-                }
-                else if (mid_opcode == 0x03)
-                {
-                    //SBC r
-                    //SET FLAGS
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x02);
-                    unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                    unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
-                    REGISTER_FILE[A_REGISTER] -= (REGISTER_FILE[low_opcode] - (REGISTER_FILE[F_REGISTER]%2));
-
-                    //Z BIT = 6
-                    if (REGISTER_FILE[A_REGISTER] == 0)
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                    }
-
-                    //H BIT = 4
-                    if (check_bit_3 == 0 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 1))
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                    }
-
-                    //C BIT = 0
-                    if (check_bit_7 == 0 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 1))
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                    }
-                }
-                else
-                {
-                    //SUB r
-                    //SET FLAGS
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x02);
-                    unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
-                    unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
-
-                    REGISTER_FILE[A_REGISTER] -= REGISTER_FILE[low_opcode];
-
-                    //Z BIT = 6
-                    if (REGISTER_FILE[A_REGISTER] == 0)
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                    }
-
-                    //H BIT = 4
-                    if (check_bit_3 == 0 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 1))
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
-                    }
-
-                    //C BIT = 0
-                    if (check_bit_7 == 0 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 1))
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
-                    }
-                    else
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
-                    }
-                }                                
             }
             else
             {
-                //ADD r
-                //SET FLAGS
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
+        }
+        else if (mid_opcode == 0x01)
+        {
+            if (low_opcode == 0x06)
+            {
+                //ADC (HL)
+                //SET FLAGS               
                 REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFD);
                 unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
                 unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
 
-                REGISTER_FILE[A_REGISTER] += REGISTER_FILE[low_opcode];
+                dispatchMemOp(HL_FULL_ADDRESS, DATA_BUS, 0);
+                REGISTER_FILE[A_REGISTER] += (*DATA_BUS + (REGISTER_FILE[F_REGISTER]%2));
 
                 //Z BIT = 6
                 if (REGISTER_FILE[A_REGISTER] == 0)
@@ -731,12 +590,217 @@ void execute()
                 {
                     REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
                 }
+                
+            }
+            else
+            {
+                //ADC r
+                //SET FLAGS               
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFD);
+                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
+                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
+
+                REGISTER_FILE[A_REGISTER] += REGISTER_FILE[low_opcode] + (REGISTER_FILE[F_REGISTER]%2);
+
+                //Z BIT = 6
+                if (REGISTER_FILE[A_REGISTER] == 0)
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
+                }
+                else
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
+                }
+
+                //H BIT = 4
+                if (check_bit_3 == 1 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 0))
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
+                }
+                else
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
+                }
+
+                //C BIT = 0
+                if (check_bit_7 == 1 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 0))
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
+                }
+                else
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
+                }
+            }                
+        }
+        else if (mid_opcode == 0x02)
+        {
+            if (low_opcode == 0x06)
+            {
+                //SUB (HL)
+                //SET FLAGS
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x02);
+                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
+                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
+
+                dispatchMemOp(HL_FULL_ADDRESS, DATA_BUS, 0);
+                REGISTER_FILE[A_REGISTER] -= *DATA_BUS;
+
+                //Z BIT = 6
+                if (REGISTER_FILE[A_REGISTER] == 0)
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
+                }
+                else
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
+                }
+
+                //H BIT = 4
+                if (check_bit_3 == 0 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 1))
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
+                }
+                else
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
+                }
+
+                //C BIT = 0
+                if (check_bit_7 == 0 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 1))
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
+                }
+                else
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
+                }
+            }
+            else
+            {
+                //SUB r
+                //SET FLAGS
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x02);
+                unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
+                unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
+
+                REGISTER_FILE[A_REGISTER] -= REGISTER_FILE[low_opcode];
+
+                //Z BIT = 6
+                if (REGISTER_FILE[A_REGISTER] == 0)
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
+                }
+                else
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
+                }
+
+                //H BIT = 4
+                if (check_bit_3 == 0 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 1))
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
+                }
+                else
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
+                }
+
+                //C BIT = 0
+                if (check_bit_7 == 0 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 1))
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
+                }
+                else
+                {
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
+                }
+            }
+        }
+        else if (mid_opcode == 0x03)
+        {
+            //SBC r
+            //SET FLAGS
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x02);
+            unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
+            unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
+
+            REGISTER_FILE[A_REGISTER] -= (REGISTER_FILE[low_opcode] - (REGISTER_FILE[F_REGISTER]%2));
+
+            //Z BIT = 6
+            if (REGISTER_FILE[A_REGISTER] == 0)
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
+            }
+            else
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
+            }
+
+            //H BIT = 4
+            if (check_bit_3 == 0 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 1))
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
+            }
+            else
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
+            }
+
+            //C BIT = 0
+            if (check_bit_7 == 0 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 1))
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
+            }
+            else
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
+            }
+        }
+        else
+        {
+            //ADD r
+            //SET FLAGS
+            REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFD);
+            unsigned char check_bit_3 = (REGISTER_FILE[A_REGISTER] >> 2)%2;
+            unsigned char check_bit_7 = (REGISTER_FILE[A_REGISTER] >> 6)%2;
+
+            REGISTER_FILE[A_REGISTER] += REGISTER_FILE[low_opcode];
+
+            //Z BIT = 6
+            if (REGISTER_FILE[A_REGISTER] == 0)
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x40);
+            }
+            else
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
+            }
+
+            //H BIT = 4
+            if (check_bit_3 == 1 && ((REGISTER_FILE[L_REGISTER] >> 2)%2 == 0))
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x08);
+            }
+            else
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xF7);
+            }
+
+            //C BIT = 0
+            if (check_bit_7 == 1 && ((REGISTER_FILE[L_REGISTER] >> 6)%2 == 0))
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x01);
+            }
+            else
+            {
+                REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xFE);
             }
         }
     }
 
     //01
-    if (high_opcode == 0x01)
+    else if (high_opcode == 0x01)
     {
         if (mid_opcode == 0x06)
         {
@@ -809,6 +873,10 @@ void execute()
                 REGISTER_FILE[H_REGISTER] = (char)(HL_FULL_ADDRESS >> 8);
                 REGISTER_FILE[L_REGISTER] = (char)HL_FULL_ADDRESS;
             }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
         }
         else if (low_opcode == 0x06)
         {
@@ -829,6 +897,10 @@ void execute()
                 REGISTER_FILE[L_REGISTER] = (char)hl_register_value;
                 
             }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
         }
 
         else if (mid_opcode == 0x07)
@@ -840,6 +912,10 @@ void execute()
                 HL_FULL_ADDRESS--;
                 REGISTER_FILE[H_REGISTER] = (HL_FULL_ADDRESS >> 8);
                 REGISTER_FILE[L_REGISTER] = (char)HL_FULL_ADDRESS;
+            }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
             }
         }
         else if (mid_opcode == 0x01)
@@ -856,6 +932,10 @@ void execute()
                 dispatchMemOp(PC+2, &REGISTER_FILE[SP_HI_REGISTER], 1);
                 PC += 2;
             }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
         }
         else if (mid_opcode == 0x02)
         {
@@ -864,6 +944,10 @@ void execute()
                 //LD (DE), A
                 dispatchMemOp((REGISTER_FILE[D_REGISTER] << 8) | REGISTER_FILE[E_REGISTER], &REGISTER_FILE[A_REGISTER], 1);
             }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
         }
         else if (mid_opcode == 0x03)
         {
@@ -871,6 +955,10 @@ void execute()
             {
                 //LD A, (DE)
                 dispatchMemOp((REGISTER_FILE[D_REGISTER] << 8) | REGISTER_FILE[E_REGISTER], &REGISTER_FILE[A_REGISTER], 0);
+            }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
             }
         }
         else if (mid_opcode == 0x04)
@@ -883,6 +971,10 @@ void execute()
                 REGISTER_FILE[H_REGISTER] = (char)(HL_FULL_ADDRESS >> 8);
                 REGISTER_FILE[L_REGISTER] = (char)HL_FULL_ADDRESS;
             }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
         }
         else if (mid_opcode == 0x00)
         {
@@ -891,35 +983,15 @@ void execute()
                 //LD (BC), A
                 dispatchMemOp((REGISTER_FILE[B_REGISTER] << 8) | REGISTER_FILE[C_REGISTER], &REGISTER_FILE[A_REGISTER], 1);
             }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
         }
 
     }
-    else
-    {
-        if (high_opcode != 0 && mid_opcode != 0 && low_opcode != 0) {
-            if (!seen_fail[((high_opcode << 8)| (mid_opcode << 3) | low_opcode)])
-            {
-                UNIQUE_FAILS++;
-            }
-            else
-            {
-                seen_fail[((high_opcode << 8)| (mid_opcode << 3) | low_opcode)] = true;
-            }
-            INSTRUCTION_FAILS++;
-            std::cout << "Error! Instruction not recognized" << std::endl << std::flush;
-        } else {
-            NOP_COUNTER++;
-        }
-    }
-    if (!seen[((high_opcode << 8)| (mid_opcode << 3) | low_opcode)])
-    {
-        UNIQUE_INST++;
-    }
-    else
-    {
-        seen[((high_opcode << 8)| (mid_opcode << 3) | low_opcode)] = true;
-    }
-    INSTRUCTION_COUNTER++;
+
+    updateMetrics(high_opcode, mid_opcode, low_opcode);
 
 }
 

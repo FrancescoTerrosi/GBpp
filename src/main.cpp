@@ -52,7 +52,7 @@ int main(int argc, char** argv)
     loop();
 
     std::cout << "Total Instructions\t\tNOP Instructions\t\tFailed Instructions\t\tInst/Failed\t\tInst/Failed (NO NOP)\t\tUInst\t\tUFailed\t\tUInst/UFailed" << std::endl;
-    std::cout << INSTRUCTION_COUNTER << "\t\t\t\t" << NOP_COUNTER << "\t\t\t\t" << INSTRUCTION_FAILS << "\t\t\t\t" << ((float)INSTRUCTION_FAILS/(float)INSTRUCTION_COUNTER)*100 << "%\t\t" << ((INSTRUCTION_FAILS-NOP_COUNTER)/(float)INSTRUCTION_COUNTER)*100 << "%\t\t\t" << UNIQUE_INST << "\t\t" << UNIQUE_FAILS << "\t\t" << ((float)UNIQUE_FAILS/(float)UNIQUE_INST)*100 << "%" << std::endl;
+    std::cout << INSTRUCTION_COUNTER << "\t\t\t\t" << NOP_COUNTER << "\t\t\t\t" << INSTRUCTION_FAILS << "\t\t\t\t" << ((float)INSTRUCTION_FAILS/(float)INSTRUCTION_COUNTER)*100 << "%\t\t" << (INSTRUCTION_FAILS/(float)(INSTRUCTION_COUNTER-NOP_COUNTER)*100) << "%\t\t\t" << UNIQUE_INST << "\t\t" << UNIQUE_FAILS << "\t\t" << ((float)UNIQUE_FAILS/(float)UNIQUE_INST)*100 << "%" << std::endl;
 
     return 0;
 

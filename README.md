@@ -9,7 +9,12 @@ A project to showcase my ***OUTSTANDING*** skills with C++.
 Nothing more, nothing less. Nespresso, what else?
 
 
-Instructions left to play TETRIS: 4735 --- 14.34%
+[x] INSTRUCTIONS LEFT TO BOOT:  25   9.77%
+[] VIDEO HANDLING
+[] AUDIO HANDLING
+[] INSTRUCTIONS LEFT TO PLAY TETRIS:    3285    (9.95% of game's instructions)
+[] INSTRUCTIONS LEFT TO PLAY SUPER MARIO LAND:  20854   (31.71% of game's instructions)
+[] INSTRUCTIONS LEFT TO PLAY POKEMON BLUE:  75592   (7.21% of game's instructions)
 
 
 ```
