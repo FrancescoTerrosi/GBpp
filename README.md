@@ -52,3 +52,10 @@ $ ./gbpp {BOOT_ROM_PATH} {ROM_PATH}
 
 ```
 
+##REFS
+
+- [1] https://ia803208.us.archive.org/9/items/GameBoyProgManVer1.1/GameBoyProgManVer1.1.pdf
+- [2] https://gbdev.io/pandocs/
+- [3] https://gekkio.fi/files/gb-docs/gbctr.pdf
+
+
