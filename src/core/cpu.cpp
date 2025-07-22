@@ -425,6 +425,20 @@ void execute()
                 updateFailMetrics(high_opcode, mid_opcode, low_opcode);
             }
         }
+        else if (mid_opcode == 0x03)
+        {
+            if (low_opcode == 0x06)
+            {
+                //SBC n
+                dispatchMemOp(PC+1, DATA_BUS, 0);
+                PC++;
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], *DATA_BUS, 0xFF, 1);
+            }
+            else
+            {
+                updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+            }
+        }
         else if (mid_opcode == 0x02)
         {
             if (low_opcode == 0x06)
@@ -517,14 +531,32 @@ void execute()
         }
         else if (mid_opcode == 0x03)
         {
-            //SBC r
-            //SET FLAGS
-            doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], REGISTER_FILE[low_opcode] - ((REGISTER_FILE[F_REGISTER] >> 4) %2), 0xFF, 1);
+            if (low_opcode == 0x06)
+            {
+                //SBC (HL)
+                dispatchMemOp(HL_FULL_ADDRESS, DATA_BUS, 0);
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], *DATA_BUS - ((REGISTER_FILE[F_REGISTER] >> 4) % 2), 0xFF, 1);
+            }
+            else
+            {
+                //SBC r
+                doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], REGISTER_FILE[low_opcode] - ((REGISTER_FILE[F_REGISTER] >> 4) %2), 0xFF, 1);
+            }
         }
-        else
+        else if (mid_opcode == 0x07)
+        {
+            //low_opcode libero
+            //CP r
+            doALUOp(DATA_BUS, REGISTER_FILE[A_REGISTER], REGISTER_FILE[low_opcode], 0xFF, 1); 
+        }
+        else if (mid_opcode == 0x00)
         {
             //ADD r
             doALUOp(&REGISTER_FILE[A_REGISTER], REGISTER_FILE[A_REGISTER], REGISTER_FILE[low_opcode], 0xFF, 0);
+        }
+        else
+        {
+            updateFailMetrics(high_opcode, mid_opcode, low_opcode);
         }
     }
 
