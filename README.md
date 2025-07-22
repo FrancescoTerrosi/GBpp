@@ -9,17 +9,18 @@ A project to showcase my ***OUTSTANDING*** skills with C++.
 Nothing more, nothing less. Nespresso, what else?
 
 
-- [x] INSTRUCTIONS LEFT TO BOOT:  25   9.77%
 
 - [ ] VIDEO HANDLING
 
 - [ ] AUDIO HANDLING
 
-- [ ] INSTRUCTIONS LEFT TO PLAY TETRIS:    3285    (9.95% of game's instructions)
+- [ ] INSTRUCTIONS LEFT TO BOOT:    25  (9.77% of ROM's unique instructions)
 
-- [ ] INSTRUCTIONS LEFT TO PLAY SUPER MARIO LAND:  20854   (31.71% of game's instructions)
+- [ ] INSTRUCTIONS LEFT TO PLAY TETRIS:    3285    (9.95% of ROM's unique instructions)
 
-- [ ] INSTRUCTIONS LEFT TO PLAY POKEMON BLUE:  75592   (7.21% of game's instructions)
+- [ ] INSTRUCTIONS LEFT TO PLAY SUPER MARIO LAND:  20854   (31.71% of ROM's unique instructions)
+
+- [ ] INSTRUCTIONS LEFT TO PLAY POKEMON BLUE:  75592   (7.21% of ROM's unique instructions)
 
 
 ```
