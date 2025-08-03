@@ -52,8 +52,6 @@ void printWRAM()
     unsigned char bytes = 0;
     for (int i = 0; i < RAM_SIZE; i++)
     {   
-        if (RAM[i] != 0)
-        {std::cout << "HELLO!" <<std::endl;}
         bytes = RAM[i];
         unsigned char bytes_copy[bytes_length];
         memcpy(&bytes_copy, &bytes, bytes_length);

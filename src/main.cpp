@@ -1,10 +1,13 @@
 #include "core/cpu.h"
+#include "gui/displaygui.h"
 
 int main(int argc, char** argv)
 {
 
-    const char* const_boot_rom_path = "./roms/dmg.bin\0";
-    int default_path_bytes = 14;
+    //const char* const_boot_rom_path = "./roms/dmg.bin\0";
+    //int default_path_bytes = 14;
+    const char* const_boot_rom_path = "./roms/dmg_boot.bin\0";
+    int default_path_bytes = 19;
     int boot_rom_size = 256;
 
     char* rom_path = new char[1024];
@@ -47,9 +50,7 @@ int main(int argc, char** argv)
     }
     test.close();
 
-    boot(boot_rom_path, boot_rom_size, rom_path);
-
-    loop();
+    initDisplay(argc, argv, boot_rom_path, boot_rom_size, rom_path);
 
     std::cout << "Total Instructions\t\tNOP Instructions\t\tFailed Instructions\t\tInst/Failed\t\tInst/Failed (NO NOP)\t\tUInst\t\tUFailed\t\tUInst/UFailed" << std::endl;
     std::cout << INSTRUCTION_COUNTER << "\t\t\t\t" << NOP_COUNTER << "\t\t\t\t" << INSTRUCTION_FAILS << "\t\t\t\t" << ((float)INSTRUCTION_FAILS/(float)INSTRUCTION_COUNTER)*100 << "%\t\t" << (INSTRUCTION_FAILS/(float)(INSTRUCTION_COUNTER-NOP_COUNTER)*100) << "%\t\t\t" << UNIQUE_INST << "\t\t" << UNIQUE_FAILS << "\t\t" << ((float)UNIQUE_FAILS/(float)UNIQUE_INST)*100 << "%" << std::endl;

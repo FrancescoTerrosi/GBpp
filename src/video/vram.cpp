@@ -36,7 +36,6 @@ void printVRAM()
     for (int i = 0; i < VRAM_SIZE; i++)
     {
         if (VRAM[i] != 0)
-        {std::cout << "HELLO!" <<std::endl;}
         bytes = VRAM[i];
         unsigned char bytes_copy[bytes_length];
         memcpy(&bytes_copy, &bytes, bytes_length);

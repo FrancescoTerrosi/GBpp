@@ -15,7 +15,7 @@ float CLOCK_FREQUENCY = 4.194304; //Mhz
 
 int REGISTER_FILE_SIZE = 14;
 
-int PC = WRAM_BANK_0_ADDRESS_START;
+unsigned short PC = 0;
 
 unsigned char* INSTRUCTION_REGISTER = new unsigned char;
 
@@ -105,8 +105,8 @@ void updateMetrics(unsigned char high_opcode, unsigned char mid_opcode, unsigned
 
 void updateFailMetrics(unsigned char high_opcode, unsigned char mid_opcode, unsigned char low_opcode)
 {
-    if (high_opcode != 0 && mid_opcode != 0 && low_opcode != 0) {
-        if (!seen_fail[((high_opcode << 8)| (mid_opcode << 3) | low_opcode)])
+    if (high_opcode != 0 | mid_opcode != 0 | low_opcode != 0) {
+        if (!seen_fail[((high_opcode << 8) | (mid_opcode << 3) | low_opcode)])
         {
             UNIQUE_FAILS++;
         }
@@ -228,9 +228,11 @@ void doALUOp(unsigned char* dst, unsigned char operand1, unsigned char operand2,
 
 void fetch()
 {
+    //Mode 2 is fetch
+    //#TODO better handling of this behaviour
     dispatchMemOp(PC, INSTRUCTION_REGISTER, 0);
 
-    std::cout << INSTRUCTION_COUNTER << ": " << "RETRIEVED INST - 0x" << std::hex << (unsigned short)*INSTRUCTION_REGISTER << std::dec << " | 0b" << parseBytes(INSTRUCTION_REGISTER, 1) << std::endl << std::flush;
+    std::cout << std::hex << "$" << PC << ": " << "0x" << (unsigned short)*INSTRUCTION_REGISTER << std::dec << " | 0b" << parseBytes(INSTRUCTION_REGISTER, 1) << std::endl << std::flush;
 }
 
 void execute()
@@ -248,7 +250,7 @@ void execute()
     //11
     if (high_opcode == 0x03)
     {
-        if (low_opcode == 0x02 && mid_opcode%2 == 0)
+        if (low_opcode == 0x05 && mid_opcode%2 == 0)
         {
             //PUSH rr
             unsigned char select_reg = (mid_opcode >> 1);
@@ -278,6 +280,8 @@ void execute()
                     dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[F_REGISTER]), 1);
                 break;
             }
+            REGISTER_FILE[SP_HI_REGISTER] = (unsigned char)(SP_FULL_ADDRESS >> 8);
+            REGISTER_FILE[SP_LO_REGISTER] = (unsigned char)(SP_FULL_ADDRESS);
         }
         else if (low_opcode == 0x01 && mid_opcode%2 == 0)
         {
@@ -286,29 +290,114 @@ void execute()
             switch (select_reg)
             {
                 case 0:
-                    dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[B_REGISTER]), 0);
-                    SP_FULL_ADDRESS++;
                     dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[C_REGISTER]), 0);
+                    SP_FULL_ADDRESS++;
+                    dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[B_REGISTER]), 0);
                 break;
                 case 1:
-                    dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[D_REGISTER]), 0);
-                    SP_FULL_ADDRESS++;
                     dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[E_REGISTER]), 0);
+                    SP_FULL_ADDRESS++;
+                    dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[D_REGISTER]), 0);
                 break;
 
                 case 2:
-                    dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[H_REGISTER]), 0);
-                    SP_FULL_ADDRESS++;
                     dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[L_REGISTER]), 0);
+                    SP_FULL_ADDRESS++;
+                    dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[H_REGISTER]), 0);
                 break;
 
                 case 3:
-                    dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[A_REGISTER]), 0);
-                    SP_FULL_ADDRESS++;
                     dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[F_REGISTER]), 0);
+                    SP_FULL_ADDRESS++;
+                    dispatchMemOp(SP_FULL_ADDRESS, &(REGISTER_FILE[A_REGISTER]), 0);
                 break;
             }
             SP_FULL_ADDRESS++;
+            REGISTER_FILE[SP_HI_REGISTER] = (unsigned char)(SP_FULL_ADDRESS >> 8);
+            REGISTER_FILE[SP_LO_REGISTER] = (unsigned char)(SP_FULL_ADDRESS);
+        }
+        else if (low_opcode == 0x01 && mid_opcode == 0x01)
+        {
+            //RET
+            dispatchMemOp(SP_FULL_ADDRESS, DATA_BUS, 0);
+            SP_FULL_ADDRESS++;
+            data = *DATA_BUS;
+            dispatchMemOp(SP_FULL_ADDRESS, DATA_BUS, 0);
+            SP_FULL_ADDRESS++;
+            data = (data | (*DATA_BUS << 8));
+            PC = data;
+        }
+        else if ((low_opcode == 0) && ((mid_opcode >> 2) == 0))
+        {
+            //RET cc
+            unsigned char cc = mid_opcode%4;
+                switch (cc)
+                {
+                    //NZ
+                    case 0:
+                        if ((REGISTER_FILE[F_REGISTER] >> 7) == 0)
+                        {
+                            //Load lsb
+                            dispatchMemOp(SP_FULL_ADDRESS, DATA_BUS, 0);
+                            SP_FULL_ADDRESS++;
+                            data = *DATA_BUS;
+
+                            //Load msb
+                            dispatchMemOp(SP_FULL_ADDRESS, DATA_BUS, 0);
+                            SP_FULL_ADDRESS++;
+                            data = (data | (*DATA_BUS << 8));
+                            PC = data;
+                        }
+                    break;
+                    //Z
+                    case 1:
+                        if ((REGISTER_FILE[F_REGISTER] >> 7) == 1)
+                        {
+                            //Load lsb
+                            dispatchMemOp(SP_FULL_ADDRESS, DATA_BUS, 0);
+                            SP_FULL_ADDRESS++;
+                            data = *DATA_BUS;
+
+                            //Load msb
+                            dispatchMemOp(SP_FULL_ADDRESS, DATA_BUS, 0);
+                            SP_FULL_ADDRESS++;
+                            data = (data | (*DATA_BUS << 8));
+                            PC = data;
+                        }
+                    break;
+                    //NC
+                    case 2:
+                        if ((REGISTER_FILE[F_REGISTER] >> 4)%2 == 0)
+                        {
+                            //Load lsb
+                            dispatchMemOp(SP_FULL_ADDRESS, DATA_BUS, 0);
+                            SP_FULL_ADDRESS++;
+                            data = *DATA_BUS;
+
+                            //Load msb
+                            dispatchMemOp(SP_FULL_ADDRESS, DATA_BUS, 0);
+                            SP_FULL_ADDRESS++;
+                            data = (data | (*DATA_BUS << 8));
+                            PC = data;
+                        }
+                    break;
+                    //C
+                    case 3:
+                        if ((REGISTER_FILE[F_REGISTER] >> 4)%2 == 1)
+                        {
+                            //Load lsb
+                            dispatchMemOp(SP_FULL_ADDRESS, DATA_BUS, 0);
+                            SP_FULL_ADDRESS++;
+                            data = *DATA_BUS;
+
+                            //Load msb
+                            dispatchMemOp(SP_FULL_ADDRESS, DATA_BUS, 0);
+                            SP_FULL_ADDRESS++;
+                            data = (data | (*DATA_BUS << 8));
+                            PC = data;
+                        }
+                    break;
+                }
         }
         else if (mid_opcode == 0x07)
         {
@@ -489,8 +578,7 @@ void execute()
                 high_opcode = (unsigned char)((*DATA_BUS & 0xC0) >> 6);
                 mid_opcode = (unsigned char)((*DATA_BUS & 0b111000) >> 3);
                 low_opcode = (unsigned char)(*DATA_BUS & 0b111);
-                std::cout << (int)high_opcode << " " << (int)mid_opcode << " " << (int)low_opcode << std::endl;
-                
+
                 if (high_opcode == 0x01)
                 {
                     //BIT b, r
@@ -507,7 +595,27 @@ void execute()
                     //Set H
                     REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x20);
                 }
+                else if (high_opcode == 0x00)
+                {
+                    if (mid_opcode == 0x02)
+                    {
+                        //RL r
+                        *DATA_BUS = (REGISTER_FILE[low_opcode] >> 7);
+                        REGISTER_FILE[low_opcode] = ((REGISTER_FILE[low_opcode] << 1) | ((REGISTER_FILE[F_REGISTER] >> 4)%2));
+                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | (*DATA_BUS << 4));
+                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0x10);
+                    }
+                    else
+                    {
+                        updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+                    }
+                }
+                else
+                {
+                    updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+                }
             }
+            //END CB PREFIX
             else if (low_opcode == 0x06)
             {
                 //ADC n
@@ -528,12 +636,17 @@ void execute()
                 pc_reg = (PC >> 8);
                 SP_FULL_ADDRESS--;
                 dispatchMemOp(SP_FULL_ADDRESS, &pc_reg, 1);
+
                 pc_reg = (unsigned char)PC;
                 SP_FULL_ADDRESS--;
                 dispatchMemOp(SP_FULL_ADDRESS, &pc_reg, 1);
+
                 REGISTER_FILE[SP_HI_REGISTER] = (unsigned char)(SP_FULL_ADDRESS >> 8);
                 REGISTER_FILE[SP_LO_REGISTER] = (unsigned char)(SP_FULL_ADDRESS);
-                PC = data;
+
+                //We increase PC at the end so must decrement
+                //#TODO better handling of this behaviour
+                PC = data-1;
             }
             else
             {
@@ -937,6 +1050,24 @@ void execute()
                 }
                 REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xD0);
             }
+            else if (mid_opcode == 0x02)
+            {
+                if (low_opcode == 0x07)
+                {
+                    //RLA
+                    *DATA_BUS = (REGISTER_FILE[A_REGISTER] >> 7);
+                    REGISTER_FILE[A_REGISTER] = ((REGISTER_FILE[A_REGISTER] << 1) | ((REGISTER_FILE[F_REGISTER] >> 4)%2));
+                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0x00);
+                    if (*DATA_BUS == 1)
+                    {
+                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | (*DATA_BUS << 4));
+                    }
+                }
+                else
+                {
+                    updateFailMetrics(high_opcode, mid_opcode, low_opcode);
+                }
+            }
             else
             {
                 updateFailMetrics(high_opcode, mid_opcode, low_opcode);
@@ -1176,7 +1307,45 @@ void execute()
         }
         else if (low_opcode == 0x00)
         {
-            if (mid_opcode == 0x01)
+            if ((mid_opcode >> 2)%2 == 1)
+            {
+                //JR cc, e
+                dispatchMemOp(PC+1, DATA_BUS, 0);
+                PC++;
+                unsigned char cc = mid_opcode%4;
+                switch (cc)
+                {
+                    //NZ
+                    case 0:
+                        if ((REGISTER_FILE[F_REGISTER] >> 7) == 0)
+                        {
+                            PC = (PC + (signed char)(*DATA_BUS));
+                        }
+                    break;
+                    //Z
+                    case 1:
+                        if ((REGISTER_FILE[F_REGISTER] >> 7) == 1)
+                        {
+                            PC = (PC + (signed char)(*DATA_BUS));
+                        }
+                    break;
+                    //NC
+                    case 2:
+                        if ((REGISTER_FILE[F_REGISTER] >> 4)%2 == 0)
+                        {
+                            PC = (PC + (signed char)(*DATA_BUS));
+                        }
+                    break;
+                    //C
+                    case 3:
+                        if ((REGISTER_FILE[F_REGISTER] >> 4)%2 == 1)
+                        {
+                            PC = (PC + (signed char)(*DATA_BUS));
+                        }
+                    break;
+                }
+            }
+            else if (mid_opcode == 0x01)
             {
                 //LD (nn), SP
                 dispatchMemOp(PC+1, &REGISTER_FILE[SP_LO_REGISTER], 1);
@@ -1204,7 +1373,9 @@ void loop()
 {
     //TODO
     //while (true)
-    while (INSTRUCTION_COUNTER < PROGRAM_SIZE)
+    while (isBooting())
+    //while (INSTRUCTION_COUNTER < PROGRAM_SIZE)
+    //while (INSTRUCTION_COUNTER < 2000)
     {
         fetch();
         execute();
@@ -1231,8 +1402,10 @@ void boot(char* boot_rom_path, int boot_rom_size, char* rom_path)
         PROGRAM_SIZE += bytes_read;
     }
 
+    REGISTER_FILE[F_REGISTER] = 0x80;
+
     loop();
 
-    printVRAM();
+    //printVRAM();
 }
 
