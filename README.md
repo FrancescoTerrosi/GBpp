@@ -9,12 +9,11 @@ A project to showcase my ***OUTSTANDING*** skills with C++.
 Nothing more, nothing less. Nespresso, what else?
 
 
+- [ ] INSTRUCTIONS LEFT TO BOOT:    0  (hopefully)
 
 - [ ] VIDEO HANDLING
 
 - [ ] AUDIO HANDLING
-
-- [ ] INSTRUCTIONS LEFT TO BOOT:    24  (9.38% of ROM's unique instructions)
 
 - [ ] INSTRUCTIONS LEFT TO PLAY TETRIS:    3285    (9.95% of ROM's unique instructions)
 
