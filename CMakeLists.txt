@@ -8,5 +8,7 @@ add_executable(gbpp
     src/core/mmu.cpp
     src/memory/ram.cpp
     src/memory/cartridgerom.cpp
+    src/video/display.cpp
+    src/video/vram.cpp
 )
 

@@ -1,7 +1,10 @@
+#include <iostream>
 #include "mmu.h"
+#include "../interfaces/mmumemoryinterface.h"
+#include "../interfaces/cpudisplayinterface.h"
 
 /*
-dispatchMemoryOp
+dispatchMemOp
     address: memory location for read/write op
     buffer: channel used to read/write data
     mode: 0 = read, 1 = write
@@ -23,7 +26,7 @@ void dispatchMemOp(unsigned short address, unsigned char* buffer, int mode)
     else if (VRAM_ADDRESS_START <= address && address <= VRAM_ADDRESS_END)
     {
         std::cout << "ACCESS VRAM 0" << std::endl;
-        ;//doOpVideoRAM(address-VIDEO_RAM_ADDRESS_START, buffer, mode);
+        doOpVRAM(address-VRAM_ADDRESS_START, buffer, mode);
     }
 
     else if (EXTERNAL_RAM_ADDRESS_START <= address && address <= EXTERNAL_RAM_ADDRESS_END)

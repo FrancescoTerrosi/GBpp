@@ -1,7 +1,5 @@
 #ifndef MMU_H
 #define MMU_H
-#include <iostream>
-#include "../interfaces/mmumemoryinterface.h"
 
 //BUS MEMORY MAP
 //16-bit BUS
