@@ -22,6 +22,8 @@ Nothing more, nothing less. Nespresso, what else?
 - Code refactoring and reorganization when first 3 steps are completed (e.g., use classes)
 
 
+#HOW TO INSTALL
+
 ```
 $ sudo apt update;
 
