@@ -12,11 +12,11 @@ add_executable(gbpp
     src/main.cpp
     src/core/cpu.cpp
     src/core/mmu.cpp
-    src/core/iocontroller.cpp
+    src/io/cpuiocontroller.cpp
     src/memory/ram.cpp
     src/memory/hram.cpp
     src/memory/cartridgerom.cpp
-    src/video/display.cpp
+    src/video/ppu.cpp
     src/video/vram.cpp
     src/gui/displaygui.cpp
 )

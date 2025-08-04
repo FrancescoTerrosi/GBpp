@@ -4,7 +4,6 @@
 #include "cpu.h"
 #include "mmu.h"
 #include "../interfaces/mmumemoryinterface.h"
-#include "../interfaces/cpudisplayinterface.h"
 
 //FOR STATISTICS
 int PROGRAM_SIZE, INSTRUCTION_COUNTER, NOP_COUNTER, INSTRUCTION_FAILS, UNIQUE_INST, UNIQUE_FAILS;
@@ -31,8 +30,9 @@ int D_REGISTER = 0x02;
 int E_REGISTER = 0x03;
 int H_REGISTER = 0x04;
 int L_REGISTER = 0x05;
-//1 2 3 4 5  6  7 8
-//S Z X H X P/V N C
+
+//1 2 3 4 5 6 7 8
+//Z N H C X X X X
 int F_REGISTER = 0x06;
 int SP_HI_REGISTER = 0x0A;
 int SP_LO_REGISTER = 0x0B;
@@ -453,8 +453,8 @@ void execute()
             {
                 //LDH A, (n)
                 dispatchMemOp(PC+1, DATA_BUS, 0);
-                REGISTER_FILE[A_REGISTER] = (0xFF | *DATA_BUS);
                 PC++;
+                dispatchMemOp((0xFF00 | *DATA_BUS), &REGISTER_FILE[A_REGISTER], 0);
             }
             else if (low_opcode == 0x02)
             {
@@ -487,8 +487,9 @@ void execute()
             if (low_opcode == 0x00)
             {
                 //LDH (n), A
-                dispatchMemOp(PC+1, &(REGISTER_FILE[A_REGISTER]), 1);
+                dispatchMemOp(PC+1, DATA_BUS, 0);
                 PC++;
+                dispatchMemOp((0xFF00 | *DATA_BUS), &REGISTER_FILE[A_REGISTER], 1);
             }
             else if (low_opcode == 0x02)
             {
@@ -841,7 +842,6 @@ void execute()
             }
             else
             {
-                //low_opcode libero
                 //CP r
                 doALUOp(DATA_BUS, REGISTER_FILE[A_REGISTER], REGISTER_FILE[low_opcode], 0xFF, 1); 
             }
@@ -1345,6 +1345,13 @@ void execute()
                     break;
                 }
             }
+            else if (mid_opcode == 0x03)
+            {
+                //JR e
+                dispatchMemOp(PC+1, DATA_BUS, 0);
+                PC++;
+                PC = (PC + (signed char)(*DATA_BUS));
+            }
             else if (mid_opcode == 0x01)
             {
                 //LD (nn), SP
@@ -1364,27 +1371,14 @@ void execute()
 
 }
 
-void render()
+void cpuloop()
 {
-    renderDisplay();
+    fetch();
+    execute();
+    PC++;
 }
 
-void loop()
-{
-    //TODO
-    //while (true)
-    while (isBooting())
-    //while (INSTRUCTION_COUNTER < PROGRAM_SIZE)
-    //while (INSTRUCTION_COUNTER < 2000)
-    {
-        fetch();
-        execute();
-        render();
-        PC++;
-    }
-}
-
-void boot(char* boot_rom_path, int boot_rom_size, char* rom_path)
+void cpuboot(char* boot_rom_path, int boot_rom_size, char* rom_path)
 {
     //DEBUG VARIABLES
     INSTRUCTION_FAILS = 0;
@@ -1403,8 +1397,6 @@ void boot(char* boot_rom_path, int boot_rom_size, char* rom_path)
     }
 
     REGISTER_FILE[F_REGISTER] = 0x80;
-
-    loop();
 
     //printVRAM();
 }

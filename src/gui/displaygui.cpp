@@ -2,7 +2,7 @@
 #include <iostream>
 #include "displaygui.h"
 #include "../core/cpu.h"
-
+#include "../video/ppu.h"
 
 #define BORDER_LENGTH 144
 
@@ -94,8 +94,12 @@ void initDisplay (int argc, char **argv, char* boot_rom_path, int boot_rom_size,
     glutTimerFunc(0, GameLoop, timestep);
 
 
-    boot(boot_rom_path, boot_rom_size, rom_path);
-    loop();
+    cpuboot(boot_rom_path, boot_rom_size, rom_path);
+    while (isBooting())
+    {
+        cpuloop();
+        ppuloop();
+    }
 
 
 

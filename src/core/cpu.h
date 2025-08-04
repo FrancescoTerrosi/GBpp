@@ -7,18 +7,13 @@
 #include "mmu.h"
 #include "../interfaces/mmumemoryinterface.h"
 
-//FOR STATISTICS
+//FOR STATISTICS AND DEBUG
 extern int PROGRAM_SIZE, INSTRUCTION_COUNTER, NOP_COUNTER, INSTRUCTION_FAILS, UNIQUE_INST, UNIQUE_FAILS;
+extern short unsigned PC;
 
-std::string parseBytes(unsigned char* bytes, int bytes_length);
+void cpuloop();
 
-void fetch();
-
-void execute();
-
-void loop();
-
-void boot(char* boot_rom_path, int boot_rom_size, char* rom_path);
+void cpuboot(char* boot_rom_path, int boot_rom_size, char* rom_path);
 
 #endif
 

@@ -1,7 +1,8 @@
 #include <iostream>
 #include <cstring>
 #include "vram.h"
-#include "../interfaces/cpudisplayinterface.h"
+#include "vrammap.h"
+#include "../interfaces/cpuppuinterface.h"
 
 unsigned char* VRAM = new unsigned char[VRAM_SIZE];
 
