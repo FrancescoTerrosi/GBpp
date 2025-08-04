@@ -1,3 +1,5 @@
+#include <cstring>
+#include <fstream>
 #include "core/cpu.h"
 #include "gui/displaygui.h"
 

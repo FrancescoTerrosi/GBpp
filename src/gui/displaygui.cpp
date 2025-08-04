@@ -96,6 +96,7 @@ void initDisplay (int argc, char **argv, char* boot_rom_path, int boot_rom_size,
 
     cpuboot(boot_rom_path, boot_rom_size, rom_path);
     while (isBooting())
+    //while (PC < 0x100)
     {
         cpuloop();
         ppuloop();

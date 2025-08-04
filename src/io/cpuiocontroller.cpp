@@ -1,4 +1,5 @@
 #include "cpuiocontroller.h"
+#include <iostream>
 
 unsigned char* IORegisterFile = new unsigned char[IO_REGISTER_FILE_SIZE];
 

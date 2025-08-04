@@ -8,12 +8,18 @@ A project to showcase my ***OUTSTANDING*** skills with C++.
 
 Nothing more, nothing less. Nespresso, what else?
 
+#ONGOING
 
-- [x] INSTRUCTIONS LEFT TO BOOT:    0
+1. [x] BOOTING, HOORAY!
 
-- [ ] VIDEO HANDLING
+2. [ ] DISPLAY LOGO
 
-- [ ] AUDIO HANDLING
+3. [ ] PLAY "TA-DING!"
+
+
+#TODO
+
+- Code refactoring and reorganization when first 3 steps are completed (e.g., use classes)
 
 
 ```

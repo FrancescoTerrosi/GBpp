@@ -13,7 +13,6 @@ void _readVRAM(unsigned short address, unsigned char* buffer)
 
 void _writeVRAM(unsigned short address, unsigned char* buffer)
 {
-    std::cout << "write VRAM" <<std::endl;
     VRAM[address] = *buffer;
 }
 

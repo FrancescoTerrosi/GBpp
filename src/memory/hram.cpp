@@ -8,14 +8,14 @@ unsigned char* HRAM = new unsigned char[HRAM_SIZE];
 void _readHRAM(unsigned short address, unsigned char* buffer)
 {
     *buffer = HRAM[address];
-    std::cout << std::hex << "BUFFER: " << (unsigned short)*buffer << std::endl;
+    //std::cout << std::hex << "BUFFER: " << (unsigned short)*buffer << std::endl;
 }
 
 void _writeHRAM(unsigned short address, unsigned char* buffer)
 {
-    std::cout << "Write hram" << std::endl;
+    //std::cout << "Write hram" << std::endl;
     HRAM[address] = *buffer;
-    std::cout << std::hex << "ADDRESS " << address << " VAL " <<  (unsigned short)HRAM[address] << std::endl;
+    //std::cout << std::hex << "ADDRESS " << address << " VAL " <<  (unsigned short)HRAM[address] << std::endl;
 }
 
 void doOpHRAM(unsigned short address, unsigned char* buffer, int mode)
