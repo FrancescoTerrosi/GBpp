@@ -232,7 +232,7 @@ void fetch()
     //#TODO better handling of this behaviour
     dispatchMemOp(PC, INSTRUCTION_REGISTER, 0);
 
-    //std::cout << std::hex << "$" << PC << ": " << "0x" << (unsigned short)*INSTRUCTION_REGISTER << std::dec << " | 0b" << parseBytes(INSTRUCTION_REGISTER, 1) << std::endl << std::flush;
+    std::cout << std::hex << "$" << PC << ": " << "0x" << (unsigned short)*INSTRUCTION_REGISTER << std::dec << " | 0b" << parseBytes(INSTRUCTION_REGISTER, 1) << std::endl;
 }
 
 void execute()
@@ -535,6 +535,14 @@ void execute()
                 dispatchMemOp(PC+1, DATA_BUS, 0);
                 PC++;
                 REGISTER_FILE[A_REGISTER] = (REGISTER_FILE[A_REGISTER] ^ (*DATA_BUS));
+                if (REGISTER_FILE[A_REGISTER] == 0)
+                {
+                    REGISTER_FILE[F_REGISTER] = 0x80;
+                }
+                else
+                {
+                    REGISTER_FILE[F_REGISTER] = 0x00;
+                }
             }
             else if (low_opcode == 0x00)
             {
@@ -591,18 +599,14 @@ void execute()
                 if (high_opcode == 0x01)
                 {
                     //BIT b, r
-                    if ((REGISTER_FILE[low_opcode] >> (mid_opcode-1))%2 == 0)
+                    if ((REGISTER_FILE[low_opcode] >> mid_opcode)%2 == 0)
                     {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x80);
+                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0xA0);
                     }
                     else
                     {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0x80);
+                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0x20);
                     }
-                    //Set N
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0xBF);
-                    //Set H
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0x20);
                 }
                 else if (high_opcode == 0x00)
                 {
@@ -789,11 +793,11 @@ void execute()
                 REGISTER_FILE[A_REGISTER] = (REGISTER_FILE[A_REGISTER] ^ (*DATA_BUS));
                 if (REGISTER_FILE[A_REGISTER] == 0)
                 {
-                    REGISTER_FILE[F_REGISTER] = 0xA0;
+                    REGISTER_FILE[F_REGISTER] = 0x80;
                 }
                 else
                 {
-                    REGISTER_FILE[F_REGISTER] = 0x20;
+                    REGISTER_FILE[F_REGISTER] = 0x00;
                 }
             }
             else
@@ -802,11 +806,11 @@ void execute()
                 REGISTER_FILE[A_REGISTER] = (REGISTER_FILE[A_REGISTER] ^ REGISTER_FILE[low_opcode]);
                 if (REGISTER_FILE[A_REGISTER] == 0)
                 {
-                    REGISTER_FILE[F_REGISTER] = 0xA0;
+                    REGISTER_FILE[F_REGISTER] = 0x80;
                 }
                 else
                 {
-                    REGISTER_FILE[F_REGISTER] = 0x20;
+                    REGISTER_FILE[F_REGISTER] = 0x00;
                 }
             }
         }
@@ -1060,21 +1064,10 @@ void execute()
             }
             else if (mid_opcode == 0x02)
             {
-                if (low_opcode == 0x07)
-                {
-                    //RLA
-                    *DATA_BUS = (REGISTER_FILE[A_REGISTER] >> 7);
-                    REGISTER_FILE[A_REGISTER] = ((REGISTER_FILE[A_REGISTER] << 1) | ((REGISTER_FILE[F_REGISTER] >> 4)%2));
-                    REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] & 0x00);
-                    if (*DATA_BUS == 1)
-                    {
-                        REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | (*DATA_BUS << 4));
-                    }
-                }
-                else
-                {
-                    updateFailMetrics(high_opcode, mid_opcode, low_opcode);
-                }
+                //RLA
+                *DATA_BUS = (REGISTER_FILE[A_REGISTER] >> 7);
+                REGISTER_FILE[A_REGISTER] = ((REGISTER_FILE[A_REGISTER] << 1) | ((REGISTER_FILE[F_REGISTER] >> 4)%2));
+                REGISTER_FILE[F_REGISTER] = (*DATA_BUS << 4);
             }
             else
             {
@@ -1385,6 +1378,7 @@ void cpuloop()
 {
     fetch();
     execute();
+
     PC++;
 }
 

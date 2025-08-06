@@ -1,7 +1,11 @@
+#include <iostream>
 #include <cstring>
 #include <fstream>
 #include "core/cpu.h"
+#include "video/ppu.h"
 #include "gui/displaygui.h"
+//FOR DEBUG
+#include "interfaces/ppumemoryinterface.h"
 
 int main(int argc, char** argv)
 {
@@ -51,6 +55,13 @@ int main(int argc, char** argv)
         std::cout << "Boot ROM found!" << std::endl << std::endl;
     }
     test.close();
+
+    //cpuboot(boot_rom_path, boot_rom_size, rom_path);
+    //while (isBooting())
+    //{
+    //    cpuloop();
+    //    ppuloop();
+    //}
 
     initDisplay(argc, argv, boot_rom_path, boot_rom_size, rom_path);
 

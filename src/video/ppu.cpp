@@ -2,13 +2,18 @@
 #include "ppu.h"
 #include "vrammap.h"
 #include "../io/videoio.h"
-#include "../interfaces/cpuppuinterface.h"
+#include "../interfaces/ppumemoryinterface.h"
+
+#define VBLANK 144
 
 unsigned char* SCREEN = new unsigned char[SCREEN_WIDTH*SCREEN_HEIGHT];
 
-unsigned char current_row = 0;
-unsigned short current_col = 0;
+unsigned char CURRENT_ROW = 0;
+unsigned short CURRENT_COL = 0;
 unsigned char data = 0;
+
+unsigned short tile_size = 16;
+unsigned char* current_tile = new unsigned char[tile_size];
 
 void ppuloop()
 {
@@ -17,14 +22,18 @@ void ppuloop()
     if ((data >> 7) == 1)
     {
         //TODO fix magic number
-        doOpIOPort(LCD_Y_COORDINATE, &current_row, 1);
-        //std::cout << std::dec << "current_row = " << (unsigned short) current_row <<std::endl;
-        //std::cout << std::dec << "current_col = " << (unsigned short) current_col <<std::endl;
-        if (current_col == 159)
+        doOpIOPort(LCD_Y_COORDINATE, &CURRENT_ROW, 1);
+
+        
+        if (CURRENT_COL == 159)
         {
-            current_row = (current_row+1)%154;
-        }   
-        current_col = (current_col+1)%160;
+            CURRENT_ROW = (CURRENT_ROW+1)%(VBLANK+10);
+        }
+        else
+        {
+            doOpVRAM(0x1800+(CURRENT_COL+(SCREEN_WIDTH*CURRENT_ROW)), &SCREEN[CURRENT_COL+(SCREEN_WIDTH*CURRENT_ROW)], 0);
+        }
+        CURRENT_COL = (CURRENT_COL+1)%160;
     }
 
 }

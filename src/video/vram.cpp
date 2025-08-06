@@ -2,7 +2,7 @@
 #include <cstring>
 #include "vram.h"
 #include "vrammap.h"
-#include "../interfaces/cpuppuinterface.h"
+#include "../interfaces/ppumemoryinterface.h"
 
 unsigned char* VRAM = new unsigned char[VRAM_SIZE];
 

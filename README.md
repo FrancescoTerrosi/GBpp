@@ -8,7 +8,7 @@ A project to showcase my ***OUTSTANDING*** skills with C++.
 
 Nothing more, nothing less. Nespresso, what else?
 
-#ONGOING
+# ONGOING
 
 1. [x] BOOTING, HOORAY!
 
@@ -17,12 +17,12 @@ Nothing more, nothing less. Nespresso, what else?
 3. [ ] PLAY "TA-DING!"
 
 
-#TODO
+# TODO
 
 - Code refactoring and reorganization when first 3 steps are completed (e.g., use classes)
 
 
-#HOW TO INSTALL
+# HOW TO INSTALL
 
 ```
 $ sudo apt update;

@@ -21,8 +21,8 @@ void dispatchMemOp(unsigned short address, unsigned char* buffer, int mode)
 
         if (ROM_BANK_00_ADDRESS_START <= address && address <= ROM_BANK_00_ADDRESS_END)
         {
-            //std::cout << "ACCESS CARTRIDGE ROM 0" << std::endl;
             doOpCartridgeROM(address-ROM_BANK_00_ADDRESS_START, buffer, mode);
+            //std::cout << "ACCESS CARTRIDGE ROM 0" << std::hex << address << " " << (unsigned short)*buffer << std::endl;
         }
         else if (ROM_BANK_01_ADDRESS_START <= address && address <= ROM_BANK_01_ADDRESS_END)
         {
@@ -32,7 +32,12 @@ void dispatchMemOp(unsigned short address, unsigned char* buffer, int mode)
 
         else if (VRAM_ADDRESS_START <= address && address <= VRAM_ADDRESS_END)
         {
-            //std::cout << "ACCESS VRAM 0" << std::endl;
+            //std::cout << std::hex << "ACCESS VRAM 0 " << address << " " << (unsigned short)*buffer << std::endl;
+            if (mode == 0)
+                std::cout << std::hex << "READ VRAM $" << address << " " << *buffer << std::endl;
+            else
+                std::cout << std::hex << "WRITE VRAM $" << address << " " << (unsigned short)*buffer << std::endl;
+
             doOpVRAM(address-VRAM_ADDRESS_START, buffer, mode);
         }
 
