@@ -76,7 +76,7 @@ void printVRAM()
             }
 
         }
-        std::cout << result << std::endl;
+        std::cout <<std::hex << i << " | " << result << std::dec << std::endl;
     }
 
 }

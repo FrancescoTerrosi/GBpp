@@ -79,8 +79,8 @@ void dispatchMemOp(unsigned short address, unsigned char* buffer, int mode)
 
         else if (IO_PORTS_ADDRESS_START <= address && address <= IO_PORTS_ADDRESS_END)
         {
-            //std::cout << "ACCESS IO PORTS" << std::endl;
             doOpIOPort(address - IO_PORTS_ADDRESS_START, buffer, mode);
+            std::cout << "ACCESS IO PORTS " << std::hex << address << " " << (unsigned short)*buffer << std::endl;
         }
 
         else if (HIGH_RAM_ADDRESS_START <= address && address <= HIGH_RAM_ADDRESS_END)

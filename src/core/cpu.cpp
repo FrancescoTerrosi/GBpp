@@ -599,7 +599,7 @@ void execute()
                 if (high_opcode == 0x01)
                 {
                     //BIT b, r
-                    if ((REGISTER_FILE[low_opcode] >> mid_opcode)%2 == 0)
+                    if ((REGISTER_FILE[low_opcode] >> (mid_opcode-1))%2 == 0)
                     {
                         REGISTER_FILE[F_REGISTER] = (REGISTER_FILE[F_REGISTER] | 0xA0);
                     }

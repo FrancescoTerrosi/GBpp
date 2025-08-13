@@ -5,8 +5,8 @@
 #include "../video/ppu.h"
 #include "../interfaces/ppumemoryinterface.h"
 
-#define BORDER_LENGTH 144
-#define BORDER_HEIGHT 160
+#define BORDER_LENGTH 160
+#define BORDER_HEIGHT 144
 
 unsigned int width = 160;
 unsigned int height = 144;
@@ -82,9 +82,10 @@ void Display(void)
         int cy = 0;
         while (cy < BORDER_HEIGHT)
         {
+            cx = 0;
             while (cx < BORDER_LENGTH)
             {
-                if (SCREEN[cx+(BORDER_LENGTH*cy)] > 1) {
+                if (SCREEN[cx+(BORDER_HEIGHT*cy)] > 0) {
 
                     //This is a rectangle
                     glVertex2f(x_left_border+(cx*w_step), y_top_border-(cy*h_step));
@@ -93,13 +94,14 @@ void Display(void)
 
                     glVertex2f(x_left_border+(cx*w_step), y_top_border-(cy*h_step)-h_step);
                     glVertex2f(x_left_border+(cx*w_step)+w_step, y_top_border-(cy*h_step)-h_step);
-                    glVertex2f(x_left_border+(cx*w_step)+w_step, y_top_border+(cy*h_step));
+                    glVertex2f(x_left_border+(cx*w_step)+w_step, y_top_border-(cy*h_step));
                     //
                 }
                 cx++;
             }
             cy++;
         }
+        std::cout << "GRAPHICS COORDINATES " << cx << " " << cy << std::endl;
 
     glEnd();
 
@@ -126,11 +128,11 @@ void GameLoop(int value)
     }
     else
     {
-        printVRAM();
-        exit(0);
-        ppuloop();
+        glutPostRedisplay();
+        //printVRAM();
+        //exit(0);
+        //ppuloop();
     }
-    glutPostRedisplay();
     glutTimerFunc(value, GameLoop, value);
 }
 
